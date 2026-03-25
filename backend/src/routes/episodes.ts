@@ -1,0 +1,89 @@
+import { Router, type Request, type Response } from "express";
+import { createReadStream, existsSync } from "fs";
+import { resolve } from "path";
+import { config } from "../config.js";
+import { getEpisode, getAllEpisodes } from "../services/database.js";
+
+export const episodesRouter = Router();
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function validateDate(date: string, res: Response): boolean {
+  if (!DATE_PATTERN.test(date)) {
+    res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD." });
+    return false;
+  }
+  return true;
+}
+
+/**
+ * GET /api/episodes — List all episodes (metadata only, no script).
+ */
+episodesRouter.get("/", (_req: Request, res: Response) => {
+  const episodes = getAllEpisodes();
+  const summaries = episodes.map((ep) => ({
+    id: ep.id,
+    date: ep.date,
+    title: ep.title,
+    duration_seconds: ep.duration_seconds,
+    audio_url: ep.audio_url,
+    product_count: ep.products.length,
+    created_at: ep.created_at,
+  }));
+  res.json(summaries);
+});
+
+/**
+ * GET /api/episodes/:date — Get a single episode with full data.
+ */
+episodesRouter.get("/:date", (req: Request, res: Response) => {
+  const date = req.params.date as string;
+  if (!validateDate(date, res)) return;
+  const episode = getEpisode(date);
+  if (!episode) {
+    res.status(404).json({ error: "Episode not found" });
+    return;
+  }
+  res.json(episode);
+});
+
+/**
+ * GET /api/episodes/:date/audio — Stream episode MP3.
+ */
+episodesRouter.get("/:date/audio", (req: Request, res: Response) => {
+  const date = req.params.date as string;
+  if (!validateDate(date, res)) return;
+  const audioPath = resolve(config.episodeOutputDir, `${date}.mp3`);
+  if (!existsSync(audioPath)) {
+    res.status(404).json({ error: "Audio file not found" });
+    return;
+  }
+
+  res.setHeader("Content-Type", "audio/mpeg");
+  res.setHeader("Accept-Ranges", "bytes");
+  createReadStream(audioPath).pipe(res);
+});
+
+/**
+ * GET /api/episodes/:date/products/:name — Get deep-dive data for a product.
+ */
+episodesRouter.get("/:date/products/:name", (req: Request, res: Response) => {
+  const date = req.params.date as string;
+  const name = req.params.name as string;
+  if (!validateDate(date, res)) return;
+  const episode = getEpisode(date);
+  if (!episode) {
+    res.status(404).json({ error: "Episode not found" });
+    return;
+  }
+
+  const product = episode.products.find(
+    (p) => p.name.toLowerCase() === name.toLowerCase()
+  );
+  if (!product) {
+    res.status(404).json({ error: "Product not found in this episode" });
+    return;
+  }
+
+  res.json(product);
+});
