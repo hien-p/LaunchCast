@@ -1173,7 +1173,7 @@ export function PlayerScreen({ episodeId, onBack }: PlayerScreenProps) {
           <div
             className="fixed inset-0 pointer-events-none z-0"
             style={{
-              backgroundImage: "url(/assets/ascii-art-bg.jpg)",
+              backgroundImage: "url(/assets/ascii-dark.gif)",
               backgroundSize: "cover",
               backgroundPosition: "center",
               backgroundRepeat: "no-repeat",

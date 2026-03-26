@@ -162,3 +162,23 @@ body {
     @apply font-sans;
   }
 }
+
+/* Force ASCII art to fill episode cards */
+.ascii-card-bg > div {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.ascii-card-bg > div > div {
+  transform: scale(1.8) !important;
+  transform-origin: center center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 100% !important;
+}

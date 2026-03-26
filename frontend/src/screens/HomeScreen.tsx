@@ -1,20 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
-import { Headphones, Play, Plus, Clock, Podcast, Mic } from "lucide-react";
+import { Headphones, Play, Plus, Clock, Podcast } from "lucide-react";
 import { fetchEpisodes } from "../lib/api";
 import type { EpisodeSummary } from "../lib/types";
 
-/* ── Gradient palette for episode cards ── */
-const gradients = [
-  "linear-gradient(135deg, #7c6cf6 0%, #f97316 100%)",
-  "linear-gradient(135deg, #f97316 0%, #ec4899 100%)",
-  "linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)",
-  "linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%)",
-  "linear-gradient(135deg, #f43f5e 0%, #f97316 100%)",
-  "linear-gradient(135deg, #10b981 0%, #3b82f6 100%)",
-  "linear-gradient(135deg, #6366f1 0%, #ec4899 100%)",
-  "linear-gradient(135deg, #14b8a6 0%, #6366f1 100%)",
-];
+const Cd = lazy(() => import("../components/ascii/cd"));
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -33,60 +23,74 @@ function formatDate(dateStr: string): string {
 
 function EpisodeCard({
   episode,
-  index,
   onClick,
 }: {
   episode: EpisodeSummary;
-  index: number;
   onClick: () => void;
 }) {
-  const gradient = gradients[index % gradients.length];
-
   return (
     <button
       onClick={onClick}
-      className="group text-left w-full transition-all duration-200"
+      className="group text-left w-full transition-all duration-200 hover:scale-[1.02]"
     >
-      {/* Thumbnail */}
-      <div
-        className="relative aspect-[4/3] rounded-xl overflow-hidden mb-3"
-        style={{ background: gradient }}
-      >
-        {/* Podcast icon overlay */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-20">
-          <Mic className="w-16 h-16 text-white" />
+      <div className="relative aspect-[4/3] w-full rounded-xl overflow-hidden bg-black shadow-xl shadow-black/30">
+        {/* CD ASCII animation background */}
+        <div
+          className="absolute inset-0 overflow-hidden ascii-card-bg"
+          style={{ color: "#ffffff", backgroundColor: "#000000" }}
+        >
+          <Suspense fallback={<div className="w-full h-full bg-gradient-to-br from-[#7c6cf6] to-[#f97316]" />}>
+            <Cd />
+          </Suspense>
+        </div>
+
+        {/* Gradient overlay for readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+        {/* Sheen effect */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: "linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.1) 100%)",
+            mixBlendMode: "overlay",
+          }}
+        />
+
+        {/* Border glow */}
+        <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/20 pointer-events-none" />
+
+        {/* Badges */}
+        <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
+          {episode.product_count > 0 && (
+            <div className="bg-black/50 backdrop-blur-sm text-white text-[11px] font-medium px-2 py-0.5 rounded-md">
+              {episode.product_count} products
+            </div>
+          )}
+          {episode.duration_seconds > 0 && (
+            <div className="bg-black/50 backdrop-blur-sm text-white text-[11px] font-medium px-2 py-0.5 rounded-md flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {formatDuration(episode.duration_seconds)}
+            </div>
+          )}
         </div>
 
         {/* Play overlay on hover */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-center justify-center">
-          <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 scale-75 group-hover:scale-100 shadow-lg">
-            <Play className="w-5 h-5 text-gray-900 ml-0.5" fill="currentColor" />
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center z-10">
+          <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 scale-75 group-hover:scale-100 shadow-xl">
+            <Play className="w-6 h-6 text-gray-900 ml-0.5" fill="currentColor" />
           </div>
         </div>
 
-        {/* Duration badge */}
-        {episode.duration_seconds > 0 && (
-          <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[11px] font-medium px-2 py-0.5 rounded-md flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            {formatDuration(episode.duration_seconds)}
-          </div>
-        )}
-
-        {/* Product count badge */}
-        {episode.product_count > 0 && (
-          <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[11px] font-medium px-2 py-0.5 rounded-md">
-            {episode.product_count} products
-          </div>
-        )}
+        {/* Title at bottom */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 z-10">
+          <h3 className="text-[14px] font-bold text-white leading-snug line-clamp-2 drop-shadow-lg">
+            {episode.title || `Episode — ${formatDate(episode.date)}`}
+          </h3>
+          <p className="text-[12px] text-white/60 mt-1">
+            {formatDate(episode.date)}
+          </p>
+        </div>
       </div>
-
-      {/* Info */}
-      <h3 className="text-[14px] font-semibold text-gray-900 leading-snug line-clamp-2 group-hover:text-[#7c6cf6] transition-colors">
-        {episode.title || `Episode — ${formatDate(episode.date)}`}
-      </h3>
-      <p className="text-[12px] text-gray-500 mt-1">
-        {formatDate(episode.date)}
-      </p>
     </button>
   );
 }
@@ -109,10 +113,10 @@ export function HomeScreen() {
       <div
         className="fixed inset-0 pointer-events-none z-0"
         style={{
-          backgroundImage: "url(/assets/ascii-art-bg.jpg)",
+          backgroundImage: "url(/assets/ascii-dark.gif)",
           backgroundSize: "cover",
           backgroundPosition: "center",
-          opacity: 0.04,
+          opacity: 0.15,
         }}
       />
 
@@ -137,25 +141,22 @@ export function HomeScreen() {
         </header>
 
         {/* Hero */}
-        <section className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#f5f3ff] via-[#faf5ff] to-[#fef3e2]" />
-          <div className="relative max-w-6xl mx-auto px-6 py-12 md:py-16">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#7c6cf6] to-[#f97316] flex items-center justify-center shadow-lg shadow-[#7c6cf6]/20">
-                <Podcast className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-[13px] font-medium text-[#7c6cf6] bg-[#7c6cf6]/10 px-3 py-1 rounded-full">
-                AI Podcast Studio
-              </span>
+        <section className="max-w-6xl mx-auto px-6 py-12 md:py-16">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#7c6cf6] to-[#f97316] flex items-center justify-center shadow-lg shadow-[#7c6cf6]/20">
+              <Podcast className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 tracking-tight mb-2">
-              Your Episodes
-            </h1>
-            <p className="text-[15px] text-gray-500 max-w-lg">
-              AI-generated podcast episodes covering the latest product launches.
-              Each episode features Aero & Nova breaking down what's new.
-            </p>
+            <span className="text-[13px] font-medium text-[#7c6cf6] bg-[#7c6cf6]/10 px-3 py-1 rounded-full">
+              AI Podcast Studio
+            </span>
           </div>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 tracking-tight mb-2">
+            Your Episodes
+          </h1>
+          <p className="text-[15px] text-gray-500 max-w-lg">
+            AI-generated podcast episodes covering the latest product launches.
+            Each episode features Aero & Nova breaking down what's new.
+          </p>
         </section>
 
         {/* Episodes grid */}
@@ -195,11 +196,10 @@ export function HomeScreen() {
                 </h2>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
-                {episodes.map((ep, i) => (
+                {episodes.map((ep) => (
                   <EpisodeCard
                     key={ep.id}
                     episode={ep}
-                    index={i}
                     onClick={() => navigate(`/episodes/${ep.id}`)}
                   />
                 ))}
