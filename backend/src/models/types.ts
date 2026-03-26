@@ -17,6 +17,7 @@ export interface Product {
   upvotes: number;
   ph_description: string;
   website_content: string;
+  image_url: string;
   pricing: Pricing;
   features: string[];
   target_audience: string;
@@ -72,6 +73,7 @@ export function createProduct(partial: Partial<Product> & { name: string }): Pro
     upvotes: partial.upvotes || 0,
     ph_description: partial.ph_description || "",
     website_content: partial.website_content || "",
+    image_url: partial.image_url || "",
     pricing: partial.pricing || { free_tier: false, plans: [] },
     features: partial.features || [],
     target_audience: partial.target_audience || "",

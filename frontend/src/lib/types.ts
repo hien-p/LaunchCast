@@ -17,6 +17,7 @@ export interface Product {
   upvotes: number;
   ph_description: string;
   website_content: string;
+  image_url: string;
   pricing: Pricing;
   features: string[];
   target_audience: string;

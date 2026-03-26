@@ -68,6 +68,7 @@ export async function scrapeProductHunt(): Promise<Product[]> {
     const tagline = metadata.description || "";
     const upvotes = extractUpvotes(markdown);
     const websiteUrl = extractWebsiteUrl(markdown);
+    const imageUrl = metadata.ogImage || metadata["og:image"] || "";
 
     products.push(
       createProduct({
@@ -77,6 +78,7 @@ export async function scrapeProductHunt(): Promise<Product[]> {
         website_url: websiteUrl,
         upvotes,
         ph_description: tagline,
+        image_url: imageUrl,
       })
     );
   }
@@ -107,6 +109,10 @@ export async function deepScrapeProduct(product: Product): Promise<Product> {
       product.features = extractFeatures(result.markdown);
       product.pricing = extractPricing(result.markdown);
       product.target_audience = extractAudience(result.markdown);
+    }
+    const meta = result?.metadata || {};
+    if (!product.image_url) {
+      product.image_url = meta.ogImage || meta["og:image"] || "";
     }
   } catch {
     // Graceful degradation — use PH blurb only
@@ -166,6 +172,8 @@ export async function scrapeSingleProduct(phUrl: string): Promise<Product> {
   const upvotes = extractUpvotes(markdown);
   const websiteUrl = extractWebsiteUrl(markdown);
 
+  const imageUrl = metadata.ogImage || metadata["og:image"] || "";
+
   return createProduct({
     name,
     tagline,
@@ -173,6 +181,7 @@ export async function scrapeSingleProduct(phUrl: string): Promise<Product> {
     website_url: websiteUrl,
     upvotes,
     ph_description: tagline || markdown.slice(0, 500),
+    image_url: imageUrl,
   });
 }
 
