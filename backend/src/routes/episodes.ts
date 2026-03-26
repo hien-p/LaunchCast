@@ -16,11 +16,8 @@ function validateDate(date: string, res: Response): boolean {
   return true;
 }
 
-/**
- * GET /api/episodes — List all episodes (metadata only, no script).
- */
-episodesRouter.get("/", (_req: Request, res: Response) => {
-  const episodes = getAllEpisodes();
+episodesRouter.get("/", async (_req: Request, res: Response) => {
+  const episodes = await getAllEpisodes();
   const summaries = episodes.map((ep) => ({
     id: ep.id,
     date: ep.date,
@@ -33,13 +30,10 @@ episodesRouter.get("/", (_req: Request, res: Response) => {
   res.json(summaries);
 });
 
-/**
- * GET /api/episodes/:date — Get a single episode with full data.
- */
-episodesRouter.get("/:date", (req: Request, res: Response) => {
+episodesRouter.get("/:date", async (req: Request, res: Response) => {
   const date = req.params.date as string;
   if (!validateDate(date, res)) return;
-  const episode = getEpisode(date);
+  const episode = await getEpisode(date);
   if (!episode) {
     res.status(404).json({ error: "Episode not found" });
     return;
@@ -47,9 +41,6 @@ episodesRouter.get("/:date", (req: Request, res: Response) => {
   res.json(episode);
 });
 
-/**
- * GET /api/episodes/:date/audio — Stream episode MP3.
- */
 episodesRouter.get("/:date/audio", (req: Request, res: Response) => {
   const date = req.params.date as string;
   if (!validateDate(date, res)) return;
@@ -64,7 +55,6 @@ episodesRouter.get("/:date/audio", (req: Request, res: Response) => {
   const range = req.headers.range;
 
   if (range) {
-    // Handle range request for seeking
     const parts = range.replace(/bytes=/, "").split("-");
     const start = parseInt(parts[0], 10);
     const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
@@ -87,14 +77,11 @@ episodesRouter.get("/:date/audio", (req: Request, res: Response) => {
   }
 });
 
-/**
- * GET /api/episodes/:date/products/:name — Get deep-dive data for a product.
- */
-episodesRouter.get("/:date/products/:name", (req: Request, res: Response) => {
+episodesRouter.get("/:date/products/:name", async (req: Request, res: Response) => {
   const date = req.params.date as string;
   const name = req.params.name as string;
   if (!validateDate(date, res)) return;
-  const episode = getEpisode(date);
+  const episode = await getEpisode(date);
   if (!episode) {
     res.status(404).json({ error: "Episode not found" });
     return;

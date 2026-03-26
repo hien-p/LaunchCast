@@ -207,7 +207,7 @@ export async function generateEpisode(
     created_at: new Date().toISOString(),
   };
 
-  saveEpisode(episode);
+  await saveEpisode(episode);
 
   emit({ type: "complete", data: { episode_id: today, title, duration_seconds: Math.round(duration) } });
 

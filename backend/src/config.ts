@@ -14,6 +14,9 @@ export const config = {
   aeroVoiceId: process.env.AERO_VOICE_ID || "TX3LPaxmHKxFdv7VOQHJ",
   novaVoiceId: process.env.NOVA_VOICE_ID || "EXAVITQu4vr4xnSDxMaL",
 
+  supabaseUrl: process.env.SUPABASE_URL || "",
+  supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+
   episodeOutputDir: resolve(
     process.env.EPISODE_OUTPUT_DIR || `${BASE_DIR}/episodes`
   ),
