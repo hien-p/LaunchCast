@@ -34,6 +34,7 @@ export function GenerationViewer({ onComplete }: GenerationViewerProps) {
   const [currentStep, setCurrentStep] = useState<string>("connected");
   const [error, setError] = useState<string | null>(null);
   const [voiceProgress, setVoiceProgress] = useState({ current: 0, total: 0 });
+  const [crawlLogs, setCrawlLogs] = useState<{ message: string; status: "loading" | "success" | "error" }[]>([]);
 
   useEffect(() => {
     if (!lastEvent) return;
@@ -52,12 +53,30 @@ export function GenerationViewer({ onComplete }: GenerationViewerProps) {
         }
         break;
 
+      case "deep_dive_start":
+        setCurrentStep("scraping_website");
+        break;
+
       case "scraping_website":
         setCurrentStep("scraping_website");
         setCurrentUrl(data.url as string);
+        setCrawlLogs((prev) => [...prev, { message: data.message as string, status: "loading" }]);
         break;
 
       case "website_scraped":
+        setCrawlLogs((prev) => {
+          const updated = [...prev];
+          const lastLoading = updated.findLastIndex((l) => l.status === "loading");
+          if (lastLoading >= 0) {
+            updated[lastLoading] = { message: data.message as string, status: data.has_website_content ? "success" : "error" };
+          }
+          return updated;
+        });
+        break;
+
+      case "deep_dive_complete":
+        setCurrentUrl(null);
+        setCrawlLogs((prev) => [...prev, { message: data.message as string, status: "success" }]);
         break;
 
       case "generating_script":
@@ -172,6 +191,35 @@ export function GenerationViewer({ onComplete }: GenerationViewerProps) {
             <div className="text-sm text-action font-mono truncate flex items-center gap-2">
               <Globe className="w-3 h-3 shrink-0 animate-pulse" />
               {currentUrl}
+            </div>
+          </div>
+        )}
+
+        {/* Crawl Logs */}
+        {crawlLogs.length > 0 && (
+          <div className="bg-surface rounded-xl border border-border overflow-hidden">
+            <div className="px-3 py-2 border-b border-border flex items-center gap-2">
+              <Globe className="w-3 h-3 text-action" />
+              <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+                Deep Dive Log
+              </span>
+            </div>
+            <div className="max-h-48 overflow-y-auto p-2 space-y-1 font-mono text-xs">
+              {crawlLogs.map((log, i) => (
+                <div
+                  key={i}
+                  className={`flex items-start gap-2 px-2 py-1 rounded ${
+                    log.status === "loading" ? "text-action" : log.status === "success" ? "text-success" : "text-text-muted"
+                  }`}
+                >
+                  {log.status === "loading" ? (
+                    <Loader2 className="w-3 h-3 mt-0.5 shrink-0 animate-spin" />
+                  ) : (
+                    <span className="shrink-0 mt-0.5">{log.status === "success" ? "✓" : "✗"}</span>
+                  )}
+                  <span className="break-all">{log.message}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}

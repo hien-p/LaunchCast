@@ -1,8 +1,8 @@
 /**
- * F3: Podcast script generation using Claude API.
+ * F3: Podcast script generation using Google Gemini API.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { config } from "../config.js";
 import type { Product, ScriptLine } from "../models/types.js";
 
@@ -38,7 +38,11 @@ export async function generateScript(
   date: string,
   preferences?: Record<string, unknown>
 ): Promise<ScriptLine[]> {
-  const client = new Anthropic({ apiKey: config.anthropicApiKey });
+  const genAI = new GoogleGenerativeAI(config.geminiApiKey);
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    systemInstruction: SYSTEM_PROMPT,
+  });
 
   const productsData = products.map((p) => ({
     name: p.name,
@@ -57,7 +61,6 @@ export async function generateScript(
   let preferencesText = "";
   if (preferences) {
     const rawInterests = preferences.interests as string[] | undefined;
-    // Validate interests against allowlist to prevent prompt injection
     const interests = rawInterests?.filter((i) => ALLOWED_INTERESTS.includes(i));
     if (interests?.length) {
       preferencesText += `Listener interests: ${interests.join(", ")}. Give extra attention to products in these areas.\n`;
@@ -83,15 +86,8 @@ Generate a complete podcast script covering all ${products.length} products. Rem
 
 ${preferencesText}`;
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 4096,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userPrompt }],
-  });
-
-  let rawText =
-    response.content[0].type === "text" ? response.content[0].text.trim() : "";
+  const result = await model.generateContent(userPrompt);
+  let rawText = result.response.text().trim();
 
   // Handle potential markdown code blocks
   if (rawText.startsWith("```")) {

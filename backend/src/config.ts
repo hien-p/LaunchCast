@@ -8,7 +8,7 @@ const BASE_DIR = resolve(__dirname, "..");
 
 export const config = {
   firecrawlApiKey: process.env.FIRECRAWL_API_KEY || "",
-  anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
+  geminiApiKey: process.env.GEMINI_API_KEY || "",
   elevenlabsApiKey: process.env.ELEVENLABS_API_KEY || "",
 
   aeroVoiceId: process.env.AERO_VOICE_ID || "TX3LPaxmHKxFdv7VOQHJ",

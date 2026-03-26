@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { createReadStream, existsSync } from "fs";
+import { createReadStream, existsSync, statSync } from "fs";
 import { resolve } from "path";
 import { config } from "../config.js";
 import { getEpisode, getAllEpisodes } from "../services/database.js";
@@ -59,9 +59,32 @@ episodesRouter.get("/:date/audio", (req: Request, res: Response) => {
     return;
   }
 
-  res.setHeader("Content-Type", "audio/mpeg");
-  res.setHeader("Accept-Ranges", "bytes");
-  createReadStream(audioPath).pipe(res);
+  const stat = statSync(audioPath);
+  const fileSize = stat.size;
+  const range = req.headers.range;
+
+  if (range) {
+    // Handle range request for seeking
+    const parts = range.replace(/bytes=/, "").split("-");
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    const chunkSize = end - start + 1;
+
+    res.writeHead(206, {
+      "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+      "Accept-Ranges": "bytes",
+      "Content-Length": chunkSize,
+      "Content-Type": "audio/mpeg",
+    });
+    createReadStream(audioPath, { start, end }).pipe(res);
+  } else {
+    res.writeHead(200, {
+      "Content-Length": fileSize,
+      "Content-Type": "audio/mpeg",
+      "Accept-Ranges": "bytes",
+    });
+    createReadStream(audioPath).pipe(res);
+  }
 });
 
 /**

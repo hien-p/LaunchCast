@@ -61,21 +61,65 @@ export async function generateEpisode(
   }
 
   // Stage 2: Deep scrape each product website
+  emit({ type: "deep_dive_start", data: { message: `Deep diving into ${products.length} product websites...`, total: products.length } });
+
   const enrichedProducts: Product[] = [];
-  for (const product of products) {
+  for (let i = 0; i < products.length; i++) {
+    const product = products[i];
     if (product.website_url) {
-      emit({ type: "scraping_website", data: { url: product.website_url, product_name: product.name } });
+      emit({
+        type: "scraping_website",
+        data: {
+          url: product.website_url,
+          product_name: product.name,
+          index: i + 1,
+          total: products.length,
+          message: `[${i + 1}/${products.length}] Crawling ${product.name} → ${product.website_url}`,
+        },
+      });
       try {
         const enriched = await deepScrapeProduct(product);
         enrichedProducts.push(enriched);
+        emit({
+          type: "website_scraped",
+          data: {
+            product_name: product.name,
+            url: product.website_url,
+            has_website_content: !!enriched.website_content,
+            features_found: enriched.features.length,
+            has_pricing: !!enriched.pricing?.free_tier,
+            message: `✓ ${product.name} — ${enriched.features.length} features found${enriched.pricing?.free_tier ? ", free tier available" : ""}`,
+          },
+        });
       } catch {
         enrichedProducts.push(product);
+        emit({
+          type: "website_scraped",
+          data: {
+            product_name: product.name,
+            url: product.website_url,
+            has_website_content: false,
+            features_found: 0,
+            message: `✗ ${product.name} — couldn't reach website, using PH data only`,
+          },
+        });
       }
-      emit({ type: "website_scraped", data: { product_name: product.name, has_website_content: !!product.website_content } });
     } else {
       enrichedProducts.push(product);
+      emit({
+        type: "website_scraped",
+        data: {
+          product_name: product.name,
+          url: null,
+          has_website_content: false,
+          features_found: 0,
+          message: `— ${product.name} — no website URL, using PH data only`,
+        },
+      });
     }
   }
+
+  emit({ type: "deep_dive_complete", data: { message: `Deep dive complete — ${enrichedProducts.filter(p => !!p.website_content).length}/${products.length} websites analyzed` } });
 
   // Stage 3: Generate podcast script
   emit({ type: "generating_script", data: { message: "Writing the episode with Aero & Nova..." } });
@@ -115,8 +159,15 @@ export async function generateEpisode(
       await synthesizeLine(line, clipPath);
       audioClips.push(clipPath);
     } catch (error) {
-      // Skip failed clips
-      console.error(`Failed to synthesize line ${i}:`, error);
+      console.error(`Failed to synthesize line ${i} (${line.speaker}):`, error);
+      emit({
+        type: "voice_error",
+        data: {
+          line_index: i,
+          speaker: line.speaker,
+          message: `Failed to record line ${i + 1} — ${String(error)}`,
+        },
+      });
     }
 
     // Small delay to avoid rate limiting
@@ -134,11 +185,15 @@ export async function generateEpisode(
     duration = await getAudioDuration(episodePath);
   }
 
-  // Generate episode title from products
-  const productNames = enrichedProducts.slice(0, 3).map((p) => p.name);
-  const titleSuffix = enrichedProducts.length > 3 ? `, and ${enrichedProducts.length - 3} more` : "";
+  // Generate episode title from products — short names only
+  const topNames = enrichedProducts.slice(0, 3).map((p) => {
+    // Use just the product name, strip taglines
+    return p.name.split(":")[0].split(" - ")[0].trim();
+  });
+  const remaining = enrichedProducts.length - topNames.length;
+  const titleSuffix = remaining > 0 ? ` +${remaining} more` : "";
   const dateFormatted = new Date(today).toLocaleDateString("en-US", { month: "long", day: "numeric" });
-  const title = `${dateFormatted} — ${productNames.join(", ")}${titleSuffix}`;
+  const title = `${dateFormatted} — ${topNames.join(", ")}${titleSuffix}`;
 
   // Save episode
   const episode: Episode = {
