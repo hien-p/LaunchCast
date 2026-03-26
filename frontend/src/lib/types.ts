@@ -32,6 +32,8 @@ export interface ScriptLine {
   text: string;
   product_ref: string | null;
   type: string;
+  start_seconds?: number;
+  end_seconds?: number;
 }
 
 export interface Episode {

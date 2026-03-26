@@ -1,5 +1,10 @@
 import { Router, type Request, type Response } from "express";
+import { resolve } from "path";
+import { existsSync } from "fs";
 import { generateEpisode } from "../services/pipeline.js";
+import { generateAudiogram, type AudiogramSize, type AudiogramTheme } from "../services/audiogramGenerator.js";
+import { getEpisode } from "../services/database.js";
+import { config } from "../config.js";
 import type { SSEEvent } from "../models/types.js";
 
 export const generateRouter = Router();
@@ -109,4 +114,45 @@ generateRouter.post("/start", async (req: Request, res: Response) => {
     });
 
   res.json({ episode_id: today, status: "generating", mode: phUrl ? "single_product" : "top_launches" });
+});
+
+/**
+ * POST /api/generate/audiogram — Generate MP4 audiogram for an episode.
+ */
+generateRouter.post("/audiogram", async (req: Request, res: Response) => {
+  const { date, size = "landscape", theme = "indigo", showSpeaker = true, showTitle = true, maxDuration = 60 } = req.body || {};
+
+  if (!date) {
+    res.status(400).json({ error: "Missing date parameter" });
+    return;
+  }
+
+  const episode = await getEpisode(date);
+  if (!episode) {
+    res.status(404).json({ error: "Episode not found" });
+    return;
+  }
+
+  const audioPath = resolve(config.episodeOutputDir, `${date}.mp3`);
+  if (!existsSync(audioPath)) {
+    res.status(404).json({ error: "Episode audio not found" });
+    return;
+  }
+
+  const outputPath = resolve(config.episodeOutputDir, `${date}_audiogram_${size}_${theme}.mp4`);
+
+  try {
+    await generateAudiogram(episode, audioPath, outputPath, {
+      size: size as AudiogramSize,
+      theme: theme as AudiogramTheme,
+      showSpeaker,
+      showTitle,
+      maxDuration: Math.min(maxDuration, 120),
+    });
+
+    res.download(outputPath, `launchcast-${date}-audiogram.mp4`);
+  } catch (err) {
+    console.error("Audiogram generation failed:", err);
+    res.status(500).json({ error: "Audiogram generation failed: " + String(err) });
+  }
 });

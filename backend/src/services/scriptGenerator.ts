@@ -86,24 +86,28 @@ Generate a complete podcast script covering all ${products.length} products. Rem
 
 ${preferencesText}`;
 
-  const result = await model.generateContent(userPrompt);
-  let rawText = result.response.text().trim();
+  let scriptData: Array<{ speaker: string; text: string; product_ref?: string | null; type?: string }> = [];
+  const maxRetries = 3;
 
-  // Handle potential markdown code blocks
-  if (rawText.startsWith("```")) {
-    rawText = rawText.split("\n").slice(1).join("\n");
-    if (rawText.endsWith("```")) {
-      rawText = rawText.slice(0, -3);
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const result = await model.generateContent(userPrompt);
+    let rawText = result.response.text().trim();
+
+    if (rawText.startsWith("```")) {
+      rawText = rawText.split("\n").slice(1).join("\n");
+      if (rawText.endsWith("```")) rawText = rawText.slice(0, -3);
+      rawText = rawText.trim();
     }
-    rawText = rawText.trim();
-  }
 
-  const scriptData = JSON.parse(rawText) as Array<{
-    speaker: string;
-    text: string;
-    product_ref?: string | null;
-    type?: string;
-  }>;
+    try {
+      scriptData = JSON.parse(rawText);
+      break;
+    } catch (parseErr) {
+      console.error(`Script JSON parse failed (attempt ${attempt + 1}/${maxRetries}):`, (parseErr as Error).message);
+      if (attempt === maxRetries - 1) throw parseErr;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
 
   const scriptLines: ScriptLine[] = scriptData.map((line) => ({
     speaker: (line.speaker === "NOVA" ? "NOVA" : "AERO") as "AERO" | "NOVA",

@@ -174,6 +174,26 @@ export async function generateEpisode(
     await new Promise((r) => setTimeout(r, 200));
   }
 
+  // Measure each clip duration for accurate transcript sync
+  const clipDurations: number[] = [];
+  for (const clip of audioClips) {
+    clipDurations.push(await getAudioDuration(clip));
+  }
+
+  // Map clip durations back to script lines (skip empty lines that had no clip)
+  const pauseDuration = 0.3;
+  let cumTime = 0;
+  let clipIdx = 0;
+  for (const line of script) {
+    if (!line.text.trim()) continue;
+    if (clipIdx < clipDurations.length) {
+      (line as any).start_seconds = cumTime;
+      (line as any).end_seconds = cumTime + clipDurations[clipIdx];
+      cumTime += clipDurations[clipIdx] + pauseDuration;
+      clipIdx++;
+    }
+  }
+
   // Stage 5: Stitch audio
   emit({ type: "stitching_audio", data: { message: "Mixing the episode...", clip_count: audioClips.length } });
 

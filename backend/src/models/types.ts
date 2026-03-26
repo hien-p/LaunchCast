@@ -38,6 +38,8 @@ export interface ScriptLine {
     | "rating"
     | "transition"
     | "outro";
+  start_seconds?: number;
+  end_seconds?: number;
 }
 
 export interface Episode {

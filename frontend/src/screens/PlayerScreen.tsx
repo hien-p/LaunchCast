@@ -560,18 +560,31 @@ function AudiogramPanel({ episode, onBack }: { episode: Episode; onBack: () => v
 
   const handleCreate = async () => {
     setGenerating(true);
-    setProgress(0);
+    setProgress(10);
     try {
-      const blob = await generateAudiogram(episode, {
-        size, theme, showSpeaker, showTitle,
-        maxDuration: maxClipDuration,
-      }, setProgress);
+      const res = await fetch("/api/generate/audiogram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: episode.date,
+          size, theme, showSpeaker, showTitle,
+          maxDuration: maxClipDuration,
+        }),
+      });
+      setProgress(80);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Generation failed");
+      }
+      const blob = await res.blob();
+      setProgress(95);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `launchcast-${episode.date}-audiogram.webm`;
+      a.download = `launchcast-${episode.date}-audiogram.mp4`;
       a.click();
       URL.revokeObjectURL(url);
+      setProgress(100);
     } catch (err) {
       console.error("Audiogram generation failed:", err);
     } finally {
@@ -847,7 +860,13 @@ function EpisodeView({
     player.setActiveItem({ id: episode.id, src: getAudioUrl(episode.date) });
   }, [episode.id]);
 
+  const hasRealTimestamps = filteredLines.length > 0 && typeof filteredLines[0].start_seconds === "number" && filteredLines[0].start_seconds >= 0;
+  const SYNC_OFFSET = 0.4;
+
   const getLineStartTime = (lineIndex: number) => {
+    if (hasRealTimestamps) {
+      return filteredLines[lineIndex]?.start_seconds || 0;
+    }
     const totalDuration = player.duration || episode.duration_seconds || 1;
     const totalChars = filteredLines.reduce((sum, l) => sum + l.text.length, 0);
     let cumTime = 0;
@@ -855,6 +874,16 @@ function EpisodeView({
       cumTime += (filteredLines[i].text.length / totalChars) * totalDuration;
     }
     return cumTime;
+  };
+
+  const getLineDuration = (lineIndex: number) => {
+    if (hasRealTimestamps) {
+      const line = filteredLines[lineIndex];
+      return (line?.end_seconds || 0) - (line?.start_seconds || 0);
+    }
+    const totalDuration = player.duration || episode.duration_seconds || 1;
+    const totalChars = filteredLines.reduce((sum, l) => sum + l.text.length, 0);
+    return (filteredLines[lineIndex].text.length / totalChars) * totalDuration;
   };
 
   const seekToLine = (lineIndex: number) => {
@@ -872,23 +901,41 @@ function EpisodeView({
 
   useEffect(() => {
     if (!episode.script || episode.script.length === 0) return;
-    const totalDuration = player.duration || episode.duration_seconds || 1;
-    const lines = episode.script.filter((l) => l.text.trim());
-    const totalChars = lines.reduce((sum, l) => sum + l.text.length, 0);
-    let cumTime = 0;
+    const lines = filteredLines;
     let foundIndex = 0;
-    for (let i = 0; i < lines.length; i++) {
-      const lineDuration = (lines[i].text.length / totalChars) * totalDuration;
-      if (currentTime < cumTime + lineDuration) {
+    const adjustedTime = currentTime + SYNC_OFFSET;
+
+    if (hasRealTimestamps) {
+      for (let i = 0; i < lines.length; i++) {
+        const start = lines[i].start_seconds || 0;
+        const end = lines[i].end_seconds || 0;
+        if (adjustedTime >= start && adjustedTime < end) {
+          foundIndex = i;
+          const lineDur = end - start;
+          wordProgress.current = lineDur > 0 ? Math.min(1, Math.max(0, (adjustedTime - start) / lineDur)) : 0;
+          break;
+        }
+        if (adjustedTime < start) { foundIndex = Math.max(0, i - 1); break; }
         foundIndex = i;
-        wordProgress.current = Math.min(1, Math.max(0, (currentTime - cumTime) / lineDuration));
-        break;
       }
-      cumTime += lineDuration;
-      foundIndex = i;
+    } else {
+      const totalDuration = player.duration || episode.duration_seconds || 1;
+      const totalChars = lines.reduce((sum, l) => sum + l.text.length, 0);
+      let cumTime = 0;
+      for (let i = 0; i < lines.length; i++) {
+        const lineDuration = (lines[i].text.length / totalChars) * totalDuration;
+        if (adjustedTime < cumTime + lineDuration) {
+          foundIndex = i;
+          wordProgress.current = Math.min(1, Math.max(0, (adjustedTime - cumTime) / lineDuration));
+          break;
+        }
+        cumTime += lineDuration;
+        foundIndex = i;
+      }
     }
+
     if (foundIndex !== activeLineIndex) setActiveLineIndex(foundIndex);
-  }, [currentTime, episode, player.duration, activeLineIndex]);
+  }, [currentTime, episode, player.duration, activeLineIndex, hasRealTimestamps, filteredLines]);
 
   useEffect(() => {
     if (activeLineRef.current && player.isPlaying) {
