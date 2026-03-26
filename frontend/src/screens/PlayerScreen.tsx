@@ -37,12 +37,12 @@ const themes = {
     borderLight: "#2a2a30",
     text: "#e8e8ec",
     textSecondary: "#999",
-    textMuted: "#555",
-    textDim: "#4a4a55",
-    textPast: "#888",
+    textMuted: "#888",
+    textDim: "#777",
+    textPast: "#aaa",
     headerBg: "rgba(10,10,11,0.95)",
     sidebarBg: "#0e0e11",
-    activeLineBg: "#13131a",
+    activeLineBg: "rgba(19, 19, 26, 0.7)",
     hoverLineBg: "#0f0f14",
     introCardFrom: "#12121a",
     introCardTo: "#0e0e14",
@@ -78,7 +78,7 @@ const themes = {
     textPast: "#555",
     headerBg: "rgba(250,250,250,0.95)",
     sidebarBg: "#ffffff",
-    activeLineBg: "#f0f0ff",
+    activeLineBg: "rgba(240, 240, 255, 0.7)",
     hoverLineBg: "#f8f8fc",
     introCardFrom: "#f5f3ff",
     introCardTo: "#fef3e2",
@@ -102,7 +102,7 @@ const themes = {
   },
 } as const;
 
-type Theme = typeof themes.dark;
+type Theme = { [K in keyof typeof themes.dark]: string };
 const ThemeContext = createContext<{ t: Theme; isDark: boolean }>({ t: themes.dark, isDark: true });
 function useTheme() { return useContext(ThemeContext); }
 
@@ -245,15 +245,12 @@ function TranscriptBlock({
   return (
     <div
       ref={lineRef}
-      className="group cursor-pointer transition-all duration-200 py-4 px-5 -mx-5 rounded-xl relative"
+      className={`group cursor-pointer transition-all duration-200 py-4 px-5 -mx-5 rounded-xl relative ${isActive ? "backdrop-blur-md" : ""}`}
       style={{ backgroundColor: isActive ? t.activeLineBg : undefined }}
       onClick={onClick}
       onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = t.hoverLineBg; }}
       onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = ""; }}
     >
-      {isActive && (
-        <div className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full" style={{ backgroundColor: speakerColor }} />
-      )}
       <div className="flex items-center gap-2 mb-2">
         <span className="text-[12px] font-bold tracking-wide px-2 py-0.5 rounded-md"
           style={{ color: speakerColor, backgroundColor: speakerBg }}>
@@ -828,7 +825,7 @@ function EpisodeView({
 }: {
   episode: Episode; onProductClick: (product: Product) => void; currentProduct: Product | null;
 }) {
-  const { t, isDark } = useTheme();
+  const { t } = useTheme();
   const player = useAudioPlayer();
   const currentTime = useAudioPlayerTime();
   const [activeLineIndex, setActiveLineIndex] = useState(-1);
@@ -1114,12 +1111,12 @@ function BottomPlayerBar({ onToggleTheme, isDark }: { onToggleTheme: () => void;
 /* ── Root ── */
 export function PlayerScreen({ episodeId, onBack }: PlayerScreenProps) {
   const [episode, setEpisode] = useState<Episode | null>(null);
-  const [pastEpisodes, setPastEpisodes] = useState<EpisodeSummary[]>([]);
+  const [, setPastEpisodes] = useState<EpisodeSummary[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(false);
 
   const t = isDark ? themes.dark : themes.light;
 
@@ -1171,8 +1168,19 @@ export function PlayerScreen({ episodeId, onBack }: PlayerScreenProps) {
   return (
     <ThemeContext.Provider value={{ t, isDark }}>
       <AudioPlayerProvider>
-        <div className="min-h-svh flex flex-col transition-colors duration-300" style={{ backgroundColor: t.bg }}>
-          <div className="flex-1 flex flex-col h-[calc(100svh-80px)]">
+        <div className="min-h-svh flex flex-col transition-colors duration-300 relative" style={{ backgroundColor: t.bg }}>
+          {/* Background grid gif */}
+          <div
+            className="fixed inset-0 pointer-events-none z-0"
+            style={{
+              backgroundImage: "url(/assets/ascii-art-bg.jpg)",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+              opacity: isDark ? 0.12 : 0.08,
+            }}
+          />
+          <div className="flex-1 flex flex-col h-[calc(100svh-80px)] relative z-[1]">
             <EpisodeView episode={episode}
               onProductClick={(product) => { setCurrentProduct(product); setSelectedProduct(product); }}
               currentProduct={currentProduct} />

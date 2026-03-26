@@ -246,7 +246,7 @@ function TranscriptViewerWords({
       className={cn("text-xl leading-relaxed", className)}
       {...props}
     >
-      {segmentsWithStatus.map(({ segment, status }) => {
+      {segmentsWithStatus.map(({ segment, status }: { segment: any; status: any }) => {
         if (segment.kind === "gap") {
           const content = renderGap
             ? renderGap({ segment, status })
@@ -324,7 +324,7 @@ function TranscriptViewerPlayPauseButton({
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (isPlaying) pause()
     else play()
-    onClick?.(event)
+    onClick?.(event as any)
   }
 
   const content =

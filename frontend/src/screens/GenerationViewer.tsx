@@ -11,8 +11,7 @@ import {
 } from "lucide-react";
 import { useSSE } from "../hooks/useSSE";
 import { getProgressSSEUrl } from "../lib/api";
-import { ProductCard } from "../components/ProductCard";
-import type { Product, SSEEvent } from "../lib/types";
+import type { Product } from "../lib/types";
 
 interface GenerationViewerProps {
   onComplete: (episodeId: string) => void;
@@ -28,7 +27,7 @@ const STEPS = [
 ];
 
 export function GenerationViewer({ onComplete }: GenerationViewerProps) {
-  const { events, lastEvent } = useSSE(getProgressSSEUrl());
+  const { lastEvent } = useSSE(getProgressSSEUrl());
   const [products, setProducts] = useState<Partial<Product>[]>([]);
   const [currentUrl, setCurrentUrl] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<string>("connected");
@@ -133,7 +132,7 @@ export function GenerationViewer({ onComplete }: GenerationViewerProps) {
             const Icon = step.icon;
             const isActive = step.key === currentStep;
             const isDone = i < currentStepIndex;
-            const isPending = i > currentStepIndex;
+            const _isPending = i > currentStepIndex;
 
             return (
               <div

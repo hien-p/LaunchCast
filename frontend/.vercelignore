@@ -1,0 +1,10 @@
+node_modules
+backend
+bot
+.env
+.env.local
+*.mp3
+*.wav
+*.db
+data
+episodes
